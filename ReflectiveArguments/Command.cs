@@ -9,22 +9,23 @@ namespace ReflectiveArguments
     {
         MethodInfo boundMethod;
         Func<object> getInstance;
-        Settings settings;
+        Help help;
 
-        List<Argument> implicitArguments = new List<Argument>();
-        List<Argument> explicitArguments = new List<Argument>();
-        List<Command> subCommands = new List<Command>();
-
+        internal Settings Settings { get; set; }
+        internal List<Argument> ImplicitArguments { get; } = new List<Argument>();
+        internal List<Argument> ExplicitArguments { get; } = new List<Argument>();
+        internal List<Command> SubCommands { get; } = new List<Command>();
         public Command Parent { get; set; }
-        protected IEnumerable<string> Path => Parent?.Path?.Append(Name) ?? new[] { Name };
+        public IEnumerable<string> Path => Parent?.Path?.Append(Name) ?? new[] { Name };
         public string Name { get; }
         public string Description { get; }
+        public bool IsBound => boundMethod != null;
 
         public Command(string name, string description, Settings settings = null)
         {
             Name = name;
             Description = description;
-            this.settings = settings ?? new Settings();
+            this.Settings = settings ?? new Settings();
         }
 
         public static Command FromMethod<T>(T instance, string methodName, string description = null, string name = null) =>
@@ -47,6 +48,7 @@ namespace ReflectiveArguments
                 throw new ArgumentException("Expected a class", type.Name);
             }
 
+
             boundMethod = type.GetMethod(methodName,
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
 
@@ -68,8 +70,13 @@ namespace ReflectiveArguments
             foreach (var p in boundMethod.GetParameters())
             {
                 var argument = Argument.FromParameterInfo(p);
-                (argument.ArgumentType == ArgumentType.Explicit ? explicitArguments : implicitArguments)
+                (argument.ArgumentType == ArgumentType.Explicit ? ExplicitArguments : ImplicitArguments)
                     .Add(argument);
+            }
+
+            if (Settings.AutoHelp)
+            {
+                help = new Help(this);
             }
 
             return this;
@@ -78,8 +85,8 @@ namespace ReflectiveArguments
         public Command AddCommand(Command command)
         {
             command.Parent = this;
-            command.settings = settings;
-            subCommands.Add(command);
+            command.Settings = Settings;
+            SubCommands.Add(command);
             return this;
         }
 
@@ -92,75 +99,6 @@ namespace ReflectiveArguments
         public Command AddCommand<T>(string methodName, string description = null, string name = null) =>
             AddCommand(new Command(name ?? methodName.ToKebabCase(), description).Bind<T>(methodName));
 
-        public List<string> GetHelp()
-        {
-            var ret = new List<string>();
-            ret.Add($"{string.Join(' ', Path)} - {Description}");
-            ret.Add(string.Empty);
-
-            var options = explicitArguments.Select(x => (Left: $"--{x.KebabName}={x.DataType.Name}", Right: x.Description));
-            var arguments = implicitArguments.Select(x => (Left: $"{x.SnakeName} ({x.DataType.Name})", Right: x.Description));
-
-            var padBy = subCommands
-                .Select(x => x.Name)
-                .Concat(arguments.Select(x => x.Left))
-                .Concat(options.Select(x => x.Left));
-
-            int pad = (padBy.Any() ? padBy.Max(x => x.Length) : 0) + 2;
-
-            if (boundMethod != null)
-            {
-                var serialOpts = options.Any()
-                    ? string.Join(" ", options.Select(x => $"({x.Left})")) + " "
-                    : string.Empty;
-
-                var serialArguments = implicitArguments.Any()
-                    ? string.Join(" ", implicitArguments.Select(x => $"{x.SnakeName}"))
-                    : string.Empty;
-
-                ret.Add($"usage: {string.Join(" ", Path)} {serialOpts}{serialArguments}");
-                ret.Add(string.Empty);
-            }
-
-            if (arguments.Any())
-            {
-                ret.Add("Arguments:");
-
-                foreach (var arg in arguments)
-                {
-                    ret.Add($"  {arg.Left.PadRight(pad)} {arg.Right}");
-                }
-
-                ret.Add(string.Empty);
-            }
-
-            if (options.Any())
-            {
-                ret.Add("Options:");
-
-                foreach (var opt in options)
-                {
-                    ret.Add($"  {opt.Left.PadRight(pad)} {opt.Right}");
-                }
-
-                ret.Add(string.Empty);
-            }
-
-            if (subCommands.Any())
-            {
-                ret.Add("Commands:");
-
-                foreach (var cmd in subCommands)
-                {
-                    ret.Add($"  {cmd.Name.PadRight(pad)} {cmd.Description}");
-                }
-
-                ret.Add(string.Empty);
-            }
-
-            return ret;
-        }
-
         public void Invoke(params string[] args) => Invoke(new Queue<string>(args));
         public void Invoke(IEnumerable<string> args) => Invoke(new Queue<string>(args));
 
@@ -169,7 +107,7 @@ namespace ReflectiveArguments
             Dictionary<string, object> explicitValues = new Dictionary<string, object>();
             List<object> implicitValues = new List<object>();
 
-            foreach (var opt in explicitArguments)
+            foreach (var opt in ExplicitArguments)
             {
                 explicitValues[opt.Name] = opt.DefaultValue;
             }
@@ -179,11 +117,11 @@ namespace ReflectiveArguments
             while (args.Any())
             {
                 var arg = args.Dequeue();
-                var subCmd = subCommands.FirstOrDefault(x => x.Name == arg);
+                var subCmd = SubCommands.FirstOrDefault(x => x.Name == arg);
 
-                if (arg == "--help" || arg == "--help=true")
+                if (help != null && arg == "--help" || arg == "--help=true")
                 {
-                    ShowHelp();
+                    help.ShowHelp();
                     return;
                 }
                 else if (boundMethod == null && subCmd == null)
@@ -201,12 +139,12 @@ namespace ReflectiveArguments
                 }
                 else
                 {
-                    if(implicitIdx >= implicitArguments.Count)
+                    if(implicitIdx >= ImplicitArguments.Count)
                     {
-                        throw new ParsingException($"Too many arguments for: {Name}. Expected {implicitArguments.Count}.");
+                        throw new ParsingException($"Too many arguments for: {Name}. Expected {ImplicitArguments.Count}.");
                     }
 
-                    var opt = implicitArguments[implicitIdx];
+                    var opt = ImplicitArguments[implicitIdx];
                     implicitValues.Add(opt.ParseValue(arg));
                     implicitIdx++;
                 }
@@ -218,10 +156,10 @@ namespace ReflectiveArguments
                 var explictValuesOrdered = explicitValues.OrderBy(x => paramOrder.IndexOf(x.Key)).Select(x => x.Value).ToArray();
                 var paramValues = implicitValues.Concat(explictValuesOrdered).ToArray();
 
-                if (implicitValues.Count != implicitArguments.Count)
+                if (implicitValues.Count != ImplicitArguments.Count)
                 {
                     throw new ParsingException($"Too few arguments for: {Name}. " +
-                        $"Expected {implicitArguments.Count} but got {implicitValues.Count}.");
+                        $"Expected {ImplicitArguments.Count} but got {implicitValues.Count}.");
                 }
 
                 boundMethod.Invoke(getInstance != null ? getInstance() : null, paramValues);
@@ -240,21 +178,13 @@ namespace ReflectiveArguments
             }
             catch (ParsingException ex)
             {
-                settings.LogError(ex.Message);
-                settings.LogInfo("See --help for more information");
+                Settings.LogError(ex.Message);
+                Settings.LogInfo("See --help for more information");
 
                 return 1;
             }
 
             return 0;
-        }
-
-        void ShowHelp()
-        {
-            foreach (var line in GetHelp())
-            {
-                settings.LogInfo(line);
-            }
         }
 
         void HandleExplicitArgument(Dictionary<string, object> values, string arg)
@@ -268,7 +198,7 @@ namespace ReflectiveArguments
 
             string kebabName = optArg[0];
 
-            var opt = explicitArguments.FirstOrDefault(x => x.Name.ToKebabCase() == kebabName);
+            var opt = ExplicitArguments.FirstOrDefault(x => x.Name.ToKebabCase() == kebabName);
 
             if (opt == null)
             {
