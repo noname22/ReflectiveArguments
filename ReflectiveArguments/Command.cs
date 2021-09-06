@@ -25,7 +25,7 @@ namespace ReflectiveArguments
         {
             Name = name;
             Description = description;
-            this.Settings = settings ?? new Settings();
+            Settings = settings ?? new Settings();
         }
 
         public static Command FromMethod<T>(T instance, string methodName, string description = null, string name = null) =>
@@ -74,11 +74,6 @@ namespace ReflectiveArguments
                     .Add(argument);
             }
 
-            if (Settings.AutoHelp)
-            {
-                help = new Help(this);
-            }
-
             return this;
         }
 
@@ -113,6 +108,11 @@ namespace ReflectiveArguments
             }
 
             int implicitIdx = 0;
+
+            if(help == null && Settings.AutoHelp)
+            {
+                help = new Help(this);
+            }
 
             while (args.Any())
             {
