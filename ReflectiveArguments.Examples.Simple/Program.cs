@@ -1,20 +1,15 @@
-﻿using System;
+﻿using ReflectiveArguments;
+using System;
 
-namespace ReflectiveArguments.Examples.Simple;
+Action hello = () => Console.WriteLine("hello");
 
-class Program
+return Command.FromMethod(Example)
+    .HandleCommandLine(args);
+
+static void Example(string info, bool flag = false, int width = 320, int height = 240)
 {
-    static int Main(string[] args)
-    {
-        return Command.FromMethod<Program>(nameof(Example))
-            .HandleCommandLine(args);
-    }
-
-    static void Example(string info, bool flag = false, int width = 320, int height = 240)
-    {
-        Console.WriteLine($"Width: {width}");
-        Console.WriteLine($"Height: {height}");
-        Console.WriteLine($"Info: {info}");
-        Console.WriteLine($"Flag: {flag}");
-    }
+    Console.WriteLine($"Width: {width}");
+    Console.WriteLine($"Height: {height}");
+    Console.WriteLine($"Info: {info}");
+    Console.WriteLine($"Flag: {flag}");
 }

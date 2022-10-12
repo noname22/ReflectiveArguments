@@ -27,7 +27,7 @@ namespace ReflectiveArguments.Tests
         {
             var myClass = new MyClass();
             var cmd = new Command("test", "tests");
-            cmd.Bind(myClass, nameof(MyClass.Run));
+            cmd.Bind(myClass.Run);
             
             cmd.Invoke("3", "true", "--ao=OA", "--string-arg=myString");
 
@@ -41,7 +41,7 @@ namespace ReflectiveArguments.Tests
         public void StaticMethodTest()
         {
             var cmd = new Command("test", "tests");
-            cmd.Bind<CommandTests>(nameof(MyMethod));
+            cmd.Bind(MyMethod);
             cmd.Invoke("hello");
 
             staticTestData.Should().Be("hello");
@@ -61,7 +61,7 @@ namespace ReflectiveArguments.Tests
             var root = new Command("test", "tests");
             
             var cmd = new Command("my-class", "tests");
-            cmd.Bind(myClass, nameof(MyClass.Run));
+            cmd.Bind(myClass.Run);
             
             root.AddCommand(cmd);
 
@@ -77,7 +77,7 @@ namespace ReflectiveArguments.Tests
         public void TooFewArguments()
         {
             var cmd = new Command("test", "tests");
-            cmd.Bind<CommandTests>(nameof(MyMethod));
+            cmd.Bind(MyMethod);
             Assert.Throws<ParsingException>(() => cmd.Invoke());
         }
 
@@ -85,7 +85,7 @@ namespace ReflectiveArguments.Tests
         public void TooManyArguments()
         {
             var cmd = new Command("test", "tests");
-            cmd.Bind<CommandTests>(nameof(MyMethod));
+            cmd.Bind(MyMethod);
             Assert.Throws<ParsingException>(() => cmd.Invoke("a", "b", "c"));
         }
     }

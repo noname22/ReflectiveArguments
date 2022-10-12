@@ -1,11 +1,9 @@
 ﻿using System;
 
-namespace ReflectiveArguments
+namespace ReflectiveArguments;
+
+public class ParsingException : Exception
 {
-    public class ParsingException : Exception
-    {
-        public ParsingException(){}
-        public ParsingException(string message) : base(message) {}
-        public ParsingException(string message, Exception inner) : base(message, inner) {}
-    }
+    public Command Command { get; set; }
+    public ParsingException(string message, Command command, Exception innerException = null) : base(message, innerException) => Command = command;
 }
