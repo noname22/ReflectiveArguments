@@ -48,7 +48,6 @@ namespace ReflectiveArguments
                 throw new ArgumentException("Expected a class", type.Name);
             }
 
-
             boundMethod = type.GetMethod(methodName,
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
 
