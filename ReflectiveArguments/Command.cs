@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace ReflectiveArguments;
 
@@ -73,10 +74,10 @@ public class Command
         where T : Delegate =>
         AddCommand(FromMethod(bindDelegate, description, name, callerName));
 
-    public void Invoke(params string[] args) => Invoke(new Queue<string>(args));
-    public void Invoke(IEnumerable<string> args) => Invoke(new Queue<string>(args));
+    public Task InvokeAsync(params string[] args) => InvokeAsync(new Queue<string>(args));
+    public Task InvokeAsync(IEnumerable<string> args) => InvokeAsync(new Queue<string>(args));
 
-    public void Invoke(Queue<string> args)
+    public async Task InvokeAsync(Queue<string> args)
     {
         Dictionary<string, object> explicitValues = new Dictionary<string, object>();
         List<object> implicitValues = new List<object>();
@@ -109,7 +110,7 @@ public class Command
             }
             else if (subCmd is not null)
             {
-                subCmd.Invoke(args);
+                await subCmd.InvokeAsync(args);
                 return;
             }
             else if (arg.StartsWith("--"))
@@ -141,7 +142,12 @@ public class Command
                     $"Expected {ImplicitArguments.Count} but got {implicitValues.Count}.", this);
             }
 
-            boundDelegate.DynamicInvoke(paramValues);
+            var returned = boundDelegate.DynamicInvoke(paramValues);
+
+            if (returned is Task task)
+            {
+                await task;
+            }
         }
         else
         {
@@ -149,11 +155,11 @@ public class Command
         }
     }
 
-    public int HandleCommandLine(IEnumerable<string> args)
+    public async Task<int> HandleCommandLineAsync(IEnumerable<string> args)
     {
         try
         {
-            Invoke(args);
+            await InvokeAsync(args);
         }
         catch (ParsingException ex)
         {
@@ -167,6 +173,8 @@ public class Command
 
         return 0;
     }
+
+    public int HandleCommandLine(IEnumerable<string> args) => HandleCommandLineAsync(args).GetAwaiter().GetResult();
 
     void HandleExplicitArgument(Dictionary<string, object> values, string arg)
     {

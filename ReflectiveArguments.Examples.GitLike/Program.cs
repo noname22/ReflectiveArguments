@@ -1,13 +1,14 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Threading.Tasks;
 
 namespace ReflectiveArguments.Examples.GitLike;
 
 class Program
 {
-    static int Main(string[] args)
+    static async Task<int> Main(string[] args)
     {
-        return new Command("git", "A free and open source distributed version control system.")
+        return await new Command("git", "A free and open source distributed version control system.")
 
             .AddCommand(Clone, "Clone a repository into a new directory")
             .AddCommand(Branch, "List, create, or delete branches")
@@ -18,12 +19,23 @@ class Program
                 .AddCommand(RemoteAdd, "Add a remote named <name> for the repository at <url>.", "add")
                 .AddCommand(RemoteRemove, "Remove the remote named <name>. ", "remove"))
 
-            .HandleCommandLine(args);
+            .HandleCommandLineAsync(args);
     }
 
-    static void Clone(string repo, [Description("Checkout recursively")] bool recursive = false) => Console.WriteLine($"Clone: {repo} (recursive: {recursive})");
+    static async Task Clone(string repo, [Description("Checkout recursively")] bool recursive = false)
+    {
+        Console.WriteLine($"Clone: {repo} (recursive: {recursive})");
+        await Task.Delay(10);
+    }
+
     static void Branch(string branch, bool delete = false) => Console.WriteLine($"Branch: {branch} (delete: {delete})");
-    static void Push() => Console.WriteLine("Push");
+    static async Task<int> Push()
+    {
+        Console.WriteLine("Push");
+        await Task.Delay(10);
+        return 1;
+    }
+
     static void Pull() => Console.WriteLine("Pull");
     static void RemoteAdd(string name, string url) => Console.WriteLine($"Remote Add name: {name}, url: {url}");
     static void RemoteRemove(string name) => Console.WriteLine($"Remote Remove name: {name}");

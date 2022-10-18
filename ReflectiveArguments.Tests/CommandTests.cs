@@ -29,7 +29,7 @@ namespace ReflectiveArguments.Tests
             var cmd = new Command("test", "tests");
             cmd.Bind(myClass.Run);
             
-            cmd.Invoke("3", "true", "--ao=OA", "--string-arg=myString");
+            cmd.InvokeAsync("3", "true", "--ao=OA", "--string-arg=myString");
 
             myClass.Ran.Should().BeTrue();
             myClass.IntArg.Should().Be(3);
@@ -42,7 +42,7 @@ namespace ReflectiveArguments.Tests
         {
             var cmd = new Command("test", "tests");
             cmd.Bind(MyMethod);
-            cmd.Invoke("hello");
+            cmd.InvokeAsync("hello");
 
             staticTestData.Should().Be("hello");
         }
@@ -65,7 +65,7 @@ namespace ReflectiveArguments.Tests
             
             root.AddCommand(cmd);
 
-            root.Invoke("my-class", "3", "true", "--ao=OA", "--string-arg=myString");
+            root.InvokeAsync("my-class", "3", "true", "--ao=OA", "--string-arg=myString");
 
             myClass.Ran.Should().BeTrue();
             myClass.IntArg.Should().Be(3);
@@ -78,7 +78,7 @@ namespace ReflectiveArguments.Tests
         {
             var cmd = new Command("test", "tests");
             cmd.Bind(MyMethod);
-            Assert.Throws<ParsingException>(() => cmd.Invoke());
+            Assert.ThrowsAsync<ParsingException>(async () => await cmd.InvokeAsync());
         }
 
         [Fact]
@@ -86,7 +86,7 @@ namespace ReflectiveArguments.Tests
         {
             var cmd = new Command("test", "tests");
             cmd.Bind(MyMethod);
-            Assert.Throws<ParsingException>(() => cmd.Invoke("a", "b", "c"));
+            Assert.ThrowsAsync<ParsingException>(async () => await cmd.InvokeAsync("a", "b", "c"));
         }
     }
 }
