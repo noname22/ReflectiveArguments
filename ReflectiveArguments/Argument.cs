@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
@@ -19,6 +21,7 @@ class Argument
     public string SnakeName => Name.ToUpperSnakeCase();
     public string Description { get; set; }
     public object DefaultValue { get; set; }
+    public bool AcceptsMany { get; set; }
 
     public object ParseValue(string value, Command command)
     {
@@ -39,10 +42,11 @@ class Argument
 
     public static Argument FromParameterInfo(ParameterInfo info) => new Argument
     {
+        AcceptsMany = info.ParameterType.IsArray,
         ArgumentType = info.HasDefaultValue ? ArgumentType.Explicit : ArgumentType.Implicit,
-        DataType = info.ParameterType,
+        DataType = info.ParameterType.IsArray ? info.ParameterType.GetElementType() : info.ParameterType,
         DefaultValue = info.DefaultValue,
         Description = info.GetCustomAttribute<DescriptionAttribute>(false)?.Description ?? string.Empty,
-        Name = info.Name
+        Name = info.Name,
     };
 }

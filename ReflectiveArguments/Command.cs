@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -79,13 +80,8 @@ public class Command
 
     public async Task InvokeAsync(Queue<string> args)
     {
-        Dictionary<string, object> explicitValues = new Dictionary<string, object>();
-        List<object> implicitValues = new List<object>();
-
-        foreach (var opt in ExplicitArguments)
-        {
-            explicitValues[opt.Name] = opt.DefaultValue;
-        }
+        var explicitValues = new Dictionary<string, object>();
+        var implicitValues = new List<object>();
 
         int implicitIdx = 0;
 
@@ -130,10 +126,19 @@ public class Command
             }
         }
 
+        foreach (var opt in ExplicitArguments)
+        {
+            if (!explicitValues.ContainsKey(opt.Name))
+            {
+                explicitValues[opt.Name] = opt.DefaultValue;
+            }
+        }
+
         if (boundDelegate is not null)
         {
             var paramOrder = boundDelegate.GetMethodInfo().GetParameters().Select(x => x.Name).ToList();
             var explictValuesOrdered = explicitValues.OrderBy(x => paramOrder.IndexOf(x.Key)).Select(x => x.Value).ToArray();
+
             var paramValues = implicitValues.Concat(explictValuesOrdered).ToArray();
 
             if (implicitValues.Count != ImplicitArguments.Count)
@@ -201,7 +206,30 @@ public class Command
 
         try
         {
-            values[opt.Name] = optArg.Length == 1 ? true : opt.ParseValue(optArg[1], this);
+            var value = optArg.Length == 1 ? true : opt.ParseValue(optArg[1], this);
+
+            if (values.TryGetValue(kebabName, out var currentValue) && !opt.AcceptsMany)
+            {
+                throw new ParsingException($"{kebabName} has already been specified", this);
+            }
+
+            if (opt.AcceptsMany)
+            {
+                var newArray = Array.CreateInstance(opt.DataType, (((Array)currentValue)?.Length ?? 0) + 1);
+
+                if (currentValue != null)
+                {
+                    Array.Copy((Array)currentValue, newArray, newArray.Length - 1);
+                }
+
+                newArray.SetValue(value, newArray.Length - 1);
+
+                values[opt.Name] = newArray;
+            }
+            else
+            {
+                values.Add(opt.Name, value);
+            }
         }
         catch (InvalidCastException ex)
         {

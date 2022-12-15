@@ -1,8 +1,6 @@
 ﻿using ReflectiveArguments;
 using System;
 
-Action hello = () => Console.WriteLine("hello");
-
 return Command.FromMethod(Example)
     .HandleCommandLine(args);
 

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace ReflectiveArguments.Tests
@@ -23,13 +24,13 @@ namespace ReflectiveArguments.Tests
         }
 
         [Fact]
-        public void ClassTest()
+        public async Task Invoke_WithClassMethod_ShouldExecuteSuccessfully()
         {
             var myClass = new MyClass();
             var cmd = new Command("test", "tests");
             cmd.Bind(myClass.Run);
             
-            cmd.InvokeAsync("3", "true", "--ao=OA", "--string-arg=myString");
+            await cmd.InvokeAsync("3", "true", "--ao=OA", "--string-arg=myString");
 
             myClass.Ran.Should().BeTrue();
             myClass.IntArg.Should().Be(3);
@@ -38,7 +39,7 @@ namespace ReflectiveArguments.Tests
         }
 
         [Fact]
-        public void StaticMethodTest()
+        public void Invoke_WithStaticMethod_ShouldExecuteSuccessfully()
         {
             var cmd = new Command("test", "tests");
             cmd.Bind(MyMethod);
@@ -55,7 +56,7 @@ namespace ReflectiveArguments.Tests
         }
 
         [Fact]
-        public void SubCommandTest()
+        public async Task InvokeOnSubCommand_WithClassMethod_ShouldExecuteSuccessfully()
         {
             var myClass = new MyClass();
             var root = new Command("test", "tests");
@@ -65,7 +66,7 @@ namespace ReflectiveArguments.Tests
             
             root.AddCommand(cmd);
 
-            root.InvokeAsync("my-class", "3", "true", "--ao=OA", "--string-arg=myString");
+            await root.InvokeAsync("my-class", "3", "true", "--ao=OA", "--string-arg=myString");
 
             myClass.Ran.Should().BeTrue();
             myClass.IntArg.Should().Be(3);
@@ -74,7 +75,7 @@ namespace ReflectiveArguments.Tests
         }
 
         [Fact]
-        public void TooFewArguments()
+        public void Invoke_WithTooFewArguments_ShouldThrow()
         {
             var cmd = new Command("test", "tests");
             cmd.Bind(MyMethod);
@@ -82,11 +83,36 @@ namespace ReflectiveArguments.Tests
         }
 
         [Fact]
-        public void TooManyArguments()
+        public void Invoke_WithTooManyArguments_ShouldThrow()
         {
             var cmd = new Command("test", "tests");
             cmd.Bind(MyMethod);
             Assert.ThrowsAsync<ParsingException>(async () => await cmd.InvokeAsync("a", "b", "c"));
+        }
+
+        [Fact]
+        public void Invoke_WithRepeatArgumentsWhenNotAllowed_ShouldThrow()
+        {
+            void Method(int parameter = 0) { }
+            Assert.ThrowsAsync<ParsingException>(async () => await Command.FromMethod(Method).InvokeAsync("--parameter=3", "--parameter=4"));
+        }
+
+        [Fact]
+        public async Task Invoke_WithRepeatArgumentsWhenAllowed_ShouldExecuteSuccessfully()
+        {
+            int[] got = null;
+            void Method(int[] parameter = null ) { got = parameter; }
+            await Command.FromMethod(Method).InvokeAsync("--parameter=3", "--parameter=4");
+            got.Should().BeEquivalentTo(new int[] { 3, 4 });
+        }
+
+        [Fact]
+        public async Task Invoke_WithRepeatArgumentsAndDefaultValue_ShouldExecuteSuccessfully()
+        {
+            int[] got = new int[] { };
+            void Method(int[] parameter = null) { got = parameter; }
+            await Command.FromMethod(Method).InvokeAsync();
+            got.Should().BeNull();
         }
     }
 }
