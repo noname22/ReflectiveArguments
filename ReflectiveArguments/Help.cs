@@ -26,12 +26,28 @@ class Help
         ret.Add($"{string.Join(' ', command.Path)} - {command.Description}");
         ret.Add(string.Empty);
 
+        string GetDefaultText(Argument arg)
+        {
+            var single = "default: " + (arg.DefaultValue is null ? "null" : $"{arg.DefaultValue}");
+            var multiple = "accepts many, default: none";
+            return arg.AcceptsMany ? multiple : single;
+        }
+
+        string GetUsage(Argument arg)
+        {
+            bool isFlag = arg.DataType == typeof(bool);
+            var normalUsage = $"--{arg.KebabName}=<{arg.DataType.Name}>";
+            var flagUsage = $"{normalUsage} | --{arg.KebabName}";
+            string multiUsage = $"{normalUsage}, ...";
+            return arg.AcceptsMany ? multiUsage : (isFlag ? flagUsage : normalUsage);
+        }
+
         var options = command.ExplicitArguments.Select(x => (
-            Left: $"--{x.KebabName}={x.DataType.Name}",
-            Right: $"{x.Description} (default: {x.DefaultValue})"));
+            Left: GetUsage(x),
+            Right: $"{x.Description} ({GetDefaultText(x)})"));
 
         var arguments = command.ImplicitArguments.Select(x => (
-            Left: $"{x.SnakeName} ({x.DataType.Name})",
+            Left: $"<{x.KebabName}> ({x.DataType.Name})",
             Right: x.Description));
 
         var padBy = command.SubCommands
@@ -44,11 +60,11 @@ class Help
         if (command.IsBound)
         {
             var serialOpts = options.Any()
-                ? string.Join(" ", options.Select(x => $"({x.Left})")) + " "
+                ? string.Join(" ", options.Select(x => $"[{x.Left}]")) + " "
                 : string.Empty;
 
             var serialArguments = command.ImplicitArguments.Any()
-                ? string.Join(" ", command.ImplicitArguments.Select(x => $"{x.SnakeName}"))
+                ? string.Join(" ", command.ImplicitArguments.Select(x => $"<{x.KebabName}>"))
                 : string.Empty;
 
             ret.Add($"usage: {string.Join(" ", command.Path)} {serialOpts}{serialArguments}");

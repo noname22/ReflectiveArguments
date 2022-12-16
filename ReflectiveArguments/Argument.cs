@@ -18,7 +18,6 @@ class Argument
     public Type DataType { get; set; }
     public string Name { get; set; }
     public string KebabName => Name.ToKebabCase();
-    public string SnakeName => Name.ToUpperSnakeCase();
     public string Description { get; set; }
     public object DefaultValue { get; set; }
     public bool AcceptsMany { get; set; }
