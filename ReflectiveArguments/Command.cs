@@ -59,6 +59,11 @@ public class Command
                 .Add(argument);
         }
 
+        if(ImplicitArguments.Take(ImplicitArguments.Count - 1).Any(x => x.AcceptsMany))
+        {
+            throw new NotSupportedException("Only last argument without default value supports array");
+        }
+
         return this;
     }
 
@@ -84,6 +89,7 @@ public class Command
         var implicitValues = new List<object>();
 
         int implicitIdx = 0;
+        bool firstImplicitMutltiArgument = true;
 
         if (help is null && Settings.AutoHelp)
         {
@@ -121,8 +127,31 @@ public class Command
                 }
 
                 var opt = ImplicitArguments[implicitIdx];
-                implicitValues.Add(opt.ParseValue(arg, this));
-                implicitIdx++;
+
+                if (opt.AcceptsMany)
+                {
+                    var value = opt.ParseValue(arg, this);
+
+                    if (firstImplicitMutltiArgument)
+                    {
+                        firstImplicitMutltiArgument = false;
+                        var emptyArray = Array.CreateInstance(opt.DataType, 0);
+                        implicitValues.Add(emptyArray);
+                    }
+
+                    var currentValue = implicitValues.Last();
+
+                    var newArray = Array.CreateInstance(opt.DataType, ((Array)currentValue).Length + 1);
+                    Array.Copy((Array)currentValue, newArray, newArray.Length - 1);
+                    newArray.SetValue(value, newArray.Length - 1);
+
+                    implicitValues[implicitValues.Count - 1] = newArray;
+                }
+                else
+                {
+                    implicitValues.Add(opt.ParseValue(arg, this));
+                    implicitIdx++;
+                }
             }
         }
 
