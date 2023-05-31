@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -6,7 +7,9 @@ namespace ReflectiveArguments.Tests
 {
     public class CommandTests
     {
-        class MyClass 
+        enum MyEnum { A, B, C, D }
+
+        class MyClass
         {
             public bool Ran { get; private set; }
             public int IntArg { get; private set; }
@@ -122,6 +125,41 @@ namespace ReflectiveArguments.Tests
             void Method(int[] parameter = null) { got = parameter; }
             await Command.FromMethod(Method).InvokeAsync();
             got.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task Invoke_WithRepeatImplicitArguments_ShouldExecuteSuccessfully()
+        {
+            int gotParameter = 0;
+            int[] gotMoreParameters = new int[] { };
+            void Method(int parameter, int[] moreParameters) { gotParameter = parameter; gotMoreParameters = moreParameters; }
+            await Command.FromMethod(Method).InvokeAsync("1", "2", "3", "4");
+            gotParameter.Should().Be(1);
+            gotMoreParameters.Should().BeEquivalentTo(new[] { 2, 3, 4 });
+        }
+
+        [Fact]
+        public void Bind_WithUnsupportedType_ShouldThrow()
+        {
+            void Method(MyClass myClass) { }
+            var ex = Assert.Throws<ArgumentException>(() => Command.FromMethod(Method));
+            ex.Message.Should().Contain("Unsupported argument type");
+        }
+
+        [Fact]
+        public void Bind_WithRepeatImplicitArgumentsNotLast_ShouldThrow()
+        {
+            void Method(int[] input, int moreInput) { }
+            var ex = Assert.Throws<ArgumentException>(() => Command.FromMethod(Method));
+            ex.Message.Should().Be("Only the last implicit argument may accept many values");
+        }
+
+        [Fact]
+        public void Bind_WithMultipleRepeatImplicitArguments_ShouldThrow()
+        {
+            void Method(int[] input, int[] moreInput) { }
+            var ex = Assert.Throws<ArgumentException>(() => Command.FromMethod(Method));
+            ex.Message.Should().Be("Only the last implicit argument may accept many values");
         }
     }
 }

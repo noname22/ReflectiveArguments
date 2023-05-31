@@ -14,6 +14,7 @@ class Program
             .AddCommand(Branch, "List, create, or delete branches")
             .AddCommand(Push, "Update remote refs along with associated objects")
             .AddCommand(Pull, "Fetch from and integrate with another repository or a local branch")
+            .AddCommand(Add, "Add file contents to the index")
 
             .AddCommand(new Command("remote", "Manage set of tracked repositories")
                 .AddCommand(RemoteAdd, "Add a remote named <name> for the repository at <url>.", "add")
@@ -39,4 +40,5 @@ class Program
     static void Pull() => Console.WriteLine("Pull");
     static void RemoteAdd(string name, string url) => Console.WriteLine($"Remote Add name: {name}, url: {url}");
     static void RemoteRemove(string name) => Console.WriteLine($"Remote Remove name: {name}");
+    static void Add(string[] path, bool force = false) => Console.WriteLine($"Add files: {string.Join(" ", path)} (force: {force})");
 }

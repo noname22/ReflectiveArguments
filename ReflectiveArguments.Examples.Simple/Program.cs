@@ -1,7 +1,7 @@
 ﻿using ReflectiveArguments;
 using System;
 
-return Command.FromMethod(Example)
+return Command.FromMethod(Example, "Simple example of how to use Reflective Arguments")
     .HandleCommandLine(args);
 
 static void Example(string info, string[] additionalInfo, bool flag = false, int width = 320, int height = 240, string[] option = null)

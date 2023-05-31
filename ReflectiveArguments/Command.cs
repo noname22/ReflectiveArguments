@@ -21,6 +21,7 @@ public class Command
     public Command Parent { get; set; }
     public IEnumerable<string> Path => Parent?.Path?.Append(Name) ?? new[] { Name };
     public string Name { get; }
+    public string FullName => string.Join(" ", Path);
     public string Description { get; }
     public bool IsBound => boundDelegate is not null;
 
@@ -77,7 +78,8 @@ public class Command
                 .Add(argument);
         }
 
-        if(ImplicitArguments.Any(x => x.AcceptsMany) && (ImplicitArguments.Count(x => x.AcceptsMany) > 1 || !ImplicitArguments.Last().AcceptsMany))
+        if(ImplicitArguments.Any(x => x.AcceptsMany) 
+            && (ImplicitArguments.Count(x => x.AcceptsMany) > 1 || !ImplicitArguments.Last().AcceptsMany))
         {
             throw new ArgumentException("Only the last implicit argument may accept many values");
         }
@@ -107,7 +109,6 @@ public class Command
         var implicitValues = new List<object>();
 
         int implicitIdx = 0;
-        bool firstImplicitMutltiArgument = true;
 
         if (help is null && Settings.AutoHelp)
         {
@@ -143,10 +144,24 @@ public class Command
                 {
                     throw new ParsingException($"Too many arguments for: {Name}. Expected {ImplicitArguments.Count}.", this);
                 }
-
+                
                 var opt = ImplicitArguments[implicitIdx];
-                implicitValues.Add(opt.ParseValue(arg, this));
-                implicitIdx++;
+                var value = opt.ParseValue(arg, this);
+
+                if (opt.AcceptsMany)
+                {
+                    if(implicitIdx >= implicitValues.Count)
+                    {
+                        implicitValues.Add(null);
+                    }
+
+                    implicitValues[implicitIdx] = ArrayConcat(implicitValues[implicitIdx], opt.DataType, value);
+                }
+                else
+                {
+                    implicitValues.Add(value);
+                    implicitIdx++;
+                }
             }
         }
 

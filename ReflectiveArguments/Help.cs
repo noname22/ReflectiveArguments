@@ -23,7 +23,7 @@ class Help
     public List<string> GetHelp()
     {
         var ret = new List<string>();
-        ret.Add($"{string.Join(' ', command.Path)} - {command.Description}");
+        ret.Add(string.IsNullOrWhiteSpace(command.Description) ? command.FullName : $"{command.FullName} - {command.Description}");
         ret.Add(string.Empty);
 
         string GetDefaultText(Argument arg)
@@ -47,7 +47,9 @@ class Help
             Right: $"{x.Description} ({GetDefaultText(x)})"));
 
         var arguments = command.ImplicitArguments.Select(x => (
-            Left: $"<{x.KebabName}> ({x.DataType.Name})",
+            Left: x.AcceptsMany 
+                ? $"<{x.KebabName}> (one or more {x.DataType.Name}s)" 
+                : $"<{x.KebabName}> ({x.DataType.Name})",
             Right: x.Description));
 
         var padBy = command.SubCommands
@@ -63,11 +65,12 @@ class Help
                 ? string.Join(" ", options.Select(x => $"[{x.Left}]")) + " "
                 : string.Empty;
 
-            var serialArguments = command.ImplicitArguments.Any()
-                ? string.Join(" ", command.ImplicitArguments.Select(x => $"<{x.KebabName}>"))
+            var implicitArguments = command.ImplicitArguments.Any()
+                ? string.Join(" ", command.ImplicitArguments
+                    .Select(x => x.AcceptsMany ? $"<{x.KebabName}> (...)" : $"<{x.KebabName}>"))
                 : string.Empty;
 
-            ret.Add($"usage: {string.Join(" ", command.Path)} {serialOpts}{serialArguments}");
+            ret.Add($"usage: {string.Join(" ", command.Path)} {serialOpts}{implicitArguments}");
             ret.Add(string.Empty);
         }
 
