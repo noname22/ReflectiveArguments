@@ -63,9 +63,6 @@ public class Command
     public Command Bind(Delegate bindDelegate)
     {
         boundDelegate = bindDelegate;
-        bool lastExplicitAcceptsMany = false;
-        bool explicitArgumentAcceptsMany = false;
-        var onlyLastEx = new ArgumentException("Only the last explicit argument may accept many values");
 
         foreach (var p in boundDelegate.GetMethodInfo().GetParameters())
         {
@@ -76,30 +73,15 @@ public class Command
                 throw new ArgumentException($"Unsupported argument type: {argument.DataType}");
             }
 
-            if(argument.AcceptsMany)
-            {
-                if (explicitArgumentAcceptsMany)
-                {
-                    throw onlyLastEx;
-                }
-
-                explicitArgumentAcceptsMany = true;
-                lastExplicitAcceptsMany = true;
-            }
-            else
-            {
-                lastExplicitAcceptsMany = false;
-            }
-
             (argument.ArgumentType == ArgumentType.Explicit ? ExplicitArguments : ImplicitArguments)
                 .Add(argument);
         }
 
-        if(explicitArgumentAcceptsMany && !lastExplicitAcceptsMany)
+        if(ImplicitArguments.Any(x => x.AcceptsMany) && (ImplicitArguments.Count(x => x.AcceptsMany) > 1 || !ImplicitArguments.Last().AcceptsMany))
         {
-            throw onlyLastEx;
+            throw new ArgumentException("Only the last implicit argument may accept many values");
         }
-
+        
         return this;
     }
 
@@ -125,6 +107,7 @@ public class Command
         var implicitValues = new List<object>();
 
         int implicitIdx = 0;
+        bool firstImplicitMutltiArgument = true;
 
         if (help is null && Settings.AutoHelp)
         {
@@ -162,22 +145,8 @@ public class Command
                 }
 
                 var opt = ImplicitArguments[implicitIdx];
-                var value = opt.ParseValue(arg, this);
-
-                if (opt.AcceptsMany)
-                {
-                    if(implicitValues.Count <= implicitIdx)
-                    {
-                        implicitValues.Add(null);
-                    }
-
-                    implicitValues[implicitIdx] = ArrayConcat(implicitValues[implicitIdx], opt.DataType, value);
-                }
-                else
-                {
-                    implicitValues.Add(value);
-                    implicitIdx++;
-                }
+                implicitValues.Add(opt.ParseValue(arg, this));
+                implicitIdx++;
             }
         }
 

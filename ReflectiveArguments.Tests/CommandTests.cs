@@ -1,6 +1,4 @@
 using FluentAssertions;
-using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -8,17 +6,14 @@ namespace ReflectiveArguments.Tests
 {
     public class CommandTests
     {
-        enum MyEnum { A, B, C, D }
-
         class MyClass 
         {
             public bool Ran { get; private set; }
-            
             public int IntArg { get; private set; }
             public bool BoolArg { get; private set; }
-            public string StringArg  { get; private set; }
+            public string StringArg { get; private set; }
 
-            public void Run(int intArg, bool boolArg, string stringArg = "myString", string AO="ao")
+            public void Run(int intArg, bool boolArg, string stringArg = "myString", string AO = "ao")
             {
                 Ran = true;
                 IntArg = intArg;
@@ -33,7 +28,7 @@ namespace ReflectiveArguments.Tests
             var myClass = new MyClass();
             var cmd = new Command("test", "tests");
             cmd.Bind(myClass.Run);
-            
+
             await cmd.InvokeAsync("3", "true", "--ao=OA", "--string-arg=myString");
 
             myClass.Ran.Should().BeTrue();
@@ -64,10 +59,10 @@ namespace ReflectiveArguments.Tests
         {
             var myClass = new MyClass();
             var root = new Command("test", "tests");
-            
+
             var cmd = new Command("my-class", "tests");
             cmd.Bind(myClass.Run);
-            
+
             root.AddCommand(cmd);
 
             await root.InvokeAsync("my-class", "3", "true", "--ao=OA", "--string-arg=myString");
@@ -105,7 +100,7 @@ namespace ReflectiveArguments.Tests
         public async Task Invoke_WithRepeatArgumentsWhenAllowed_ShouldExecuteSuccessfully()
         {
             int[] got = null;
-            void Method(int[] parameter = null ) { got = parameter; }
+            void Method(int[] parameter = null) { got = parameter; }
             await Command.FromMethod(Method).InvokeAsync("--parameter=3", "--parameter=4");
             got.Should().BeEquivalentTo(new int[] { 3, 4 });
         }
@@ -127,51 +122,6 @@ namespace ReflectiveArguments.Tests
             void Method(int[] parameter = null) { got = parameter; }
             await Command.FromMethod(Method).InvokeAsync();
             got.Should().BeNull();
-        }
-
-        [Fact]
-        public async Task Invoke_WithRepeatImplicitArguments_ShouldExecuteSuccessfully()
-        {
-            int[] got = new int[] { };
-            void Method(int[] parameters) { got = parameters; }
-            await Command.FromMethod(Method).InvokeAsync("1", "2", "3");
-            got.Should().BeEquivalentTo(new[] { 1, 2, 3 });
-        }
-
-        [Fact]
-        public async Task Invoke_WithNormmalAndRepeatImplicitArguments_ShouldExecuteSuccessfully()
-        {
-            int[] got = new int[] { };
-            int gotA = 0, gotB = 0;
-            void Method(int a, int b, int[] parameters) { got = parameters; gotA = a; gotB = b; }
-            await Command.FromMethod(Method).InvokeAsync("3", "4", "1", "2", "3");
-            got.Should().BeEquivalentTo(new[] { 1, 2, 3 });
-            gotA.Should().Be(3);
-            gotB.Should().Be(4);
-        }
-
-        [Fact]
-        public void FromMethod_WithRepeatArgumentsNotLast_ShouldThrow()
-        {
-            void Method(int[] parameters, int otherParameter) { }
-            var ex = Assert.Throws<ArgumentException>(() => Command.FromMethod(Method));
-            ex.Message.Should().Be("Only the last explicit argument may accept many values");
-        }
-
-        [Fact]
-        public void FromMethod_WithMultipleRepeatArguments_ShouldThrow()
-        {
-            void Method(int[] parameters, int[] otherParameter) { }
-            var ex = Assert.Throws<ArgumentException>(() => Command.FromMethod(Method));
-            ex.Message.Should().Be("Only the last explicit argument may accept many values");
-        }
-
-        [Fact]
-        public async Task Invoke_WithUnsupportedArgumentType_ShouldThrow()
-        {
-            void Method(List<int> parameters) {}
-            var ex = await Assert.ThrowsAsync<ArgumentException>(async () => await Command.FromMethod(Method).InvokeAsync("1", "2", "3"));
-            ex.Message.Should().Contain("Unsupported argument type:");
         }
     }
 }
