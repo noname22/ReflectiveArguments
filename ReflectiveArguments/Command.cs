@@ -24,6 +24,18 @@ public class Command
     public string Description { get; }
     public bool IsBound => boundDelegate is not null;
 
+    private static List<Type> SupportedDataTypes = new() {
+        typeof(byte),
+        typeof(short),
+        typeof(int),
+        typeof(long),
+        typeof(ushort),
+        typeof(uint),
+        typeof(ulong),
+        typeof(string),
+        typeof(bool),
+    };
+
     public Command(string name, string description, Settings settings = null)
     {
         Name = name;
@@ -51,12 +63,41 @@ public class Command
     public Command Bind(Delegate bindDelegate)
     {
         boundDelegate = bindDelegate;
+        bool lastExplicitAcceptsMany = false;
+        bool explicitArgumentAcceptsMany = false;
+        var onlyLastEx = new ArgumentException("Only the last explicit argument may accept many values");
 
         foreach (var p in boundDelegate.GetMethodInfo().GetParameters())
         {
             var argument = Argument.FromParameterInfo(p);
+
+            if (!SupportedDataTypes.Contains(argument.DataType) && !argument.DataType.IsEnum)
+            {
+                throw new ArgumentException($"Unsupported argument type: {argument.DataType}");
+            }
+
+            if(argument.AcceptsMany)
+            {
+                if (explicitArgumentAcceptsMany)
+                {
+                    throw onlyLastEx;
+                }
+
+                explicitArgumentAcceptsMany = true;
+                lastExplicitAcceptsMany = true;
+            }
+            else
+            {
+                lastExplicitAcceptsMany = false;
+            }
+
             (argument.ArgumentType == ArgumentType.Explicit ? ExplicitArguments : ImplicitArguments)
                 .Add(argument);
+        }
+
+        if(explicitArgumentAcceptsMany && !lastExplicitAcceptsMany)
+        {
+            throw onlyLastEx;
         }
 
         return this;
@@ -121,8 +162,22 @@ public class Command
                 }
 
                 var opt = ImplicitArguments[implicitIdx];
-                implicitValues.Add(opt.ParseValue(arg, this));
-                implicitIdx++;
+                var value = opt.ParseValue(arg, this);
+
+                if (opt.AcceptsMany)
+                {
+                    if(implicitValues.Count <= implicitIdx)
+                    {
+                        implicitValues.Add(null);
+                    }
+
+                    implicitValues[implicitIdx] = ArrayConcat(implicitValues[implicitIdx], opt.DataType, value);
+                }
+                else
+                {
+                    implicitValues.Add(value);
+                    implicitIdx++;
+                }
             }
         }
 
@@ -208,23 +263,14 @@ public class Command
         {
             var value = optArg.Length == 1 ? true : opt.ParseValue(optArg[1], this);
 
-            if (values.TryGetValue(kebabName, out var currentValue) && !opt.AcceptsMany)
+            if (values.TryGetValue(opt.Name, out var currentValue) && !opt.AcceptsMany)
             {
                 throw new ParsingException($"{kebabName} has already been specified", this);
             }
 
             if (opt.AcceptsMany)
             {
-                var newArray = Array.CreateInstance(opt.DataType, (((Array)currentValue)?.Length ?? 0) + 1);
-
-                if (currentValue != null)
-                {
-                    Array.Copy((Array)currentValue, newArray, newArray.Length - 1);
-                }
-
-                newArray.SetValue(value, newArray.Length - 1);
-
-                values[opt.Name] = newArray;
+                values[opt.Name] = ArrayConcat(currentValue, opt.DataType, value);
             }
             else
             {
@@ -235,5 +281,19 @@ public class Command
         {
             throw new ParsingException($"Expected option {kebabName} to be of type {opt.DataType}", this, ex);
         }
+    }
+
+    Array ArrayConcat(object array, Type type, object value)
+    {
+        var newArray = Array.CreateInstance(type, (((Array)array)?.Length ?? 0) + 1);
+
+        if (array != null)
+        {
+            Array.Copy((Array)array, newArray, newArray.Length - 1);
+        }
+
+        newArray.SetValue(value, newArray.Length - 1);
+
+        return newArray;
     }
 }
