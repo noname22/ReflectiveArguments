@@ -37,7 +37,7 @@ class Help
         {
             bool isFlag = arg.DataType == typeof(bool);
             var normalUsage = $"--{arg.KebabName}=<{arg.DataType.Name}>";
-            var flagUsage = $"{normalUsage} | --{arg.KebabName}";
+            var flagUsage = $"{normalUsage}, --{arg.KebabName}";
             string multiUsage = $"{normalUsage}, ...";
             return arg.AcceptsMany ? multiUsage : (isFlag ? flagUsage : normalUsage);
         }
@@ -47,8 +47,8 @@ class Help
             Right: $"{x.Description} ({GetDefaultText(x)})"));
 
         var arguments = command.ImplicitArguments.Select(x => (
-            Left: x.AcceptsMany 
-                ? $"<{x.KebabName}> (one or more {x.DataType.Name}s)" 
+            Left: x.AcceptsMany
+                ? $"<{x.KebabName}> (one or more {x.DataType.Name}s)"
                 : $"<{x.KebabName}> ({x.DataType.Name})",
             Right: x.Description));
 
@@ -59,20 +59,24 @@ class Help
 
         int pad = (padBy.Any() ? padBy.Max(x => x.Length) : 0) + 2;
 
-        if (command.IsBound)
+        var serialOpts = options.Any()
+            ? string.Join(" ", options.Select(x => $"[{x.Left}]")) + " "
+            : string.Empty;
+
+        var implicitArguments = command.ImplicitArguments.Any()
+            ? string.Join(" ", command.ImplicitArguments
+                .Select(x => x.AcceptsMany ? $"<{x.KebabName}> (...)" : $"<{x.KebabName}>")) + " "
+            : string.Empty;
+
+        var commandText = string.Empty;
+
+        if (command.SubCommands.Count > 0)
         {
-            var serialOpts = options.Any()
-                ? string.Join(" ", options.Select(x => $"[{x.Left}]")) + " "
-                : string.Empty;
-
-            var implicitArguments = command.ImplicitArguments.Any()
-                ? string.Join(" ", command.ImplicitArguments
-                    .Select(x => x.AcceptsMany ? $"<{x.KebabName}> (...)" : $"<{x.KebabName}>"))
-                : string.Empty;
-
-            ret.Add($"usage: {string.Join(" ", command.Path)} {serialOpts}{implicitArguments}");
-            ret.Add(string.Empty);
+            commandText = command.IsBound ? "(<command>)" : "<command>";
         }
+
+        ret.Add($"usage: {string.Join(" ", command.Path)} {serialOpts}{implicitArguments}{commandText}");
+        ret.Add(string.Empty);
 
         if (arguments.Any())
         {

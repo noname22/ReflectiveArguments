@@ -102,6 +102,11 @@ public class Command
 
     public Command AddCommand(Command command)
     {
+        if(ImplicitArguments.Count > 0)
+        {
+            throw new ArgumentException("Can't add sub-command to a command with implicit arguments", nameof(command));
+        }
+
         command.Parent = this;
         command.Settings = Settings;
         SubCommands.Add(command);
