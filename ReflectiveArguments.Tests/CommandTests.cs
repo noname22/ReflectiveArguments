@@ -1,4 +1,5 @@
 using FluentAssertions;
+using ReflectiveArguments.Tests.TestTypes;
 using System;
 using System.Threading.Tasks;
 using Xunit;
@@ -48,6 +49,15 @@ namespace ReflectiveArguments.Tests
             cmd.InvokeAsync("hello");
 
             staticTestData.Should().Be("hello");
+        }
+
+        [Fact]
+        public void Invoke_WithStaticMethodInOtherStaticClass_ShouldExecuteSuccessfully()
+        {
+            var cmd = Command.FromMethod(OtherStaticClass.StaticMethod);
+            cmd.InvokeAsync("hello");
+
+            OtherStaticClass.SomeArgument.Should().Be("hello");
         }
 
         static string staticTestData = null;

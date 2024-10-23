@@ -39,6 +39,11 @@ public class Command
 
     public Command(string name, string description, Settings settings = null)
     {
+        if (!IsValidName(name))
+        {
+            throw new ArgumentException("Name must only contain letters, numbers, underscores and dashes", nameof(name));
+        }
+
         Name = name;
         Description = description;
         Settings = settings ?? new Settings();
@@ -50,12 +55,20 @@ public class Command
     {
         if (name is null)
         {
-            if (callerName is null || !Regex.IsMatch(callerName, "^[a-zA-Z0-9_]*$"))
-            {
-                throw new ArgumentException("Name of method could not be determined, please specify.", nameof(bindDelegate));
-            }
+            name = bindDelegate.GetMethodInfo().Name.ToKebabCase();
 
-            name = callerName.ToKebabCase();
+            if (!IsValidName(name))
+            {
+                // If eg. a private method is passed in, the name will be invalid.
+                // Try to determine name by caller argument instead.
+
+                name = callerName.Split(".").Last().ToKebabCase();
+
+                if (!IsValidName(name))
+                {
+                    throw new ArgumentException("Name of method could not be determined, please specify.", nameof(bindDelegate));
+                }
+            }
         }
 
         return new Command(name, description).Bind(bindDelegate);
@@ -78,12 +91,12 @@ public class Command
                 .Add(argument);
         }
 
-        if(ImplicitArguments.Any(x => x.AcceptsMany) 
+        if (ImplicitArguments.Any(x => x.AcceptsMany)
             && (ImplicitArguments.Count(x => x.AcceptsMany) > 1 || !ImplicitArguments.Last().AcceptsMany))
         {
             throw new ArgumentException("Only the last implicit argument may accept many values");
         }
-        
+
         return this;
     }
 
@@ -144,13 +157,13 @@ public class Command
                 {
                     throw new ParsingException($"Too many arguments for: {Name}. Expected {ImplicitArguments.Count}.", this);
                 }
-                
+
                 var opt = ImplicitArguments[implicitIdx];
                 var value = opt.ParseValue(arg, this);
 
                 if (opt.AcceptsMany)
                 {
-                    if(implicitIdx >= implicitValues.Count)
+                    if (implicitIdx >= implicitValues.Count)
                     {
                         implicitValues.Add(null);
                     }
@@ -265,6 +278,11 @@ public class Command
         {
             throw new ParsingException($"Expected option {kebabName} to be of type {opt.DataType}", this, ex);
         }
+    }
+
+    private static bool IsValidName(string name)
+    {
+        return Regex.IsMatch(name, @"^[a-zA-Z0-9_\-]*$");
     }
 
     Array ArrayConcat(object array, Type type, object value)
