@@ -2,7 +2,7 @@
 
 namespace ReflectiveArguments;
 
-public class Settings
+public class ReflectiveArgumentSettings
 {
     public Action<string> LogInfo { get; set; } = Console.WriteLine;
     public Action<string> LogError { get; set; } = Console.Error.WriteLine;

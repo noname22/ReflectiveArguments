@@ -14,9 +14,9 @@ public class Command
     Delegate boundDelegate;
     Help help;
 
-    internal Settings Settings { get; set; }
-    internal List<Argument> ImplicitArguments { get; } = new List<Argument>();
-    internal List<Argument> ExplicitArguments { get; } = new List<Argument>();
+    internal ReflectiveArgumentSettings Settings { get; set; }
+    internal List<Parameter> Arguments { get; } = new List<Parameter>();
+    internal List<Parameter> Options { get; } = new List<Parameter>();
     internal List<Command> SubCommands { get; } = new List<Command>();
     public Command Parent { get; set; }
     public IEnumerable<string> Path => Parent?.Path?.Append(Name) ?? new[] { Name };
@@ -37,7 +37,7 @@ public class Command
         typeof(bool),
     };
 
-    public Command(string name, string description, Settings settings = null)
+    public Command(string name, string description, ReflectiveArgumentSettings settings = null)
     {
         if (!IsValidName(name))
         {
@@ -46,11 +46,11 @@ public class Command
 
         Name = name;
         Description = description;
-        Settings = settings ?? new Settings();
+        Settings = settings ?? new ReflectiveArgumentSettings();
     }
 
     public static Command FromMethod<T>(T bindDelegate, string description = null, string name = null,
-        [CallerArgumentExpression("bindDelegate")] string callerName = null)
+        [CallerArgumentExpression("bindDelegate")] string callerName = null, ReflectiveArgumentSettings settings = null)
         where T : Delegate
     {
         if (name is null)
@@ -71,7 +71,7 @@ public class Command
             }
         }
 
-        return new Command(name, description).Bind(bindDelegate);
+        return new Command(name, description, settings).Bind(bindDelegate);
     }
 
     public Command Bind(Delegate bindDelegate)
@@ -80,21 +80,21 @@ public class Command
 
         foreach (var p in boundDelegate.GetMethodInfo().GetParameters())
         {
-            var argument = Argument.FromParameterInfo(p);
+            var parameter = Parameter.FromParameterInfo(p);
 
-            if (!SupportedDataTypes.Contains(argument.DataType) && !argument.DataType.IsEnum)
+            if (!SupportedDataTypes.Contains(parameter.DataType) && !parameter.DataType.IsEnum)
             {
-                throw new ArgumentException($"Unsupported argument type: {argument.DataType}");
+                throw new ArgumentException($"Unsupported argument type: {parameter.DataType}");
             }
 
-            (argument.ArgumentType == ArgumentType.Explicit ? ExplicitArguments : ImplicitArguments)
-                .Add(argument);
+            (parameter.ParameterType == ParameterType.Option ? Options : Arguments)
+                .Add(parameter);
         }
 
-        if (ImplicitArguments.Any(x => x.AcceptsMany)
-            && (ImplicitArguments.Count(x => x.AcceptsMany) > 1 || !ImplicitArguments.Last().AcceptsMany))
+        if (Arguments.Any(x => x.AcceptsMany)
+            && (Arguments.Count(x => x.AcceptsMany) > 1 || !Arguments.Last().AcceptsMany))
         {
-            throw new ArgumentException("Only the last implicit argument may accept many values");
+            throw new ArgumentException("Only the last argument may accept many values");
         }
 
         return this;
@@ -102,9 +102,9 @@ public class Command
 
     public Command AddCommand(Command command)
     {
-        if(ImplicitArguments.Count > 0)
+        if(Arguments.Count > 0)
         {
-            throw new ArgumentException("Can't add sub-command to a command with implicit arguments", nameof(command));
+            throw new ArgumentException("Can't add sub-command to a command with arguments", nameof(command));
         }
 
         command.Parent = this;
@@ -123,10 +123,10 @@ public class Command
 
     public async Task InvokeAsync(Queue<string> args)
     {
-        var explicitValues = new Dictionary<string, object>();
-        var implicitValues = new List<object>();
+        var optionValues = new Dictionary<string, object>();
+        var argumentValues = new List<object>();
 
-        int implicitIdx = 0;
+        int argumentIdx = 0;
 
         if (help is null && Settings.AutoHelp)
         {
@@ -154,54 +154,54 @@ public class Command
             }
             else if (arg.StartsWith("--"))
             {
-                HandleExplicitArgument(explicitValues, arg);
+                HandleOption(optionValues, arg);
             }
             else
             {
-                if (implicitIdx >= ImplicitArguments.Count)
+                if (argumentIdx >= Arguments.Count)
                 {
-                    throw new ParsingException($"Too many arguments for: {Name}. Expected {ImplicitArguments.Count}.", this);
+                    throw new ParsingException($"Too many arguments for: {Name}. Expected {Arguments.Count}.", this);
                 }
 
-                var opt = ImplicitArguments[implicitIdx];
+                var opt = Arguments[argumentIdx];
                 var value = opt.ParseValue(arg, this);
 
                 if (opt.AcceptsMany)
                 {
-                    if (implicitIdx >= implicitValues.Count)
+                    if (argumentIdx >= argumentValues.Count)
                     {
-                        implicitValues.Add(null);
+                        argumentValues.Add(null);
                     }
 
-                    implicitValues[implicitIdx] = ArrayConcat(implicitValues[implicitIdx], opt.DataType, value);
+                    argumentValues[argumentIdx] = ArrayConcat(argumentValues[argumentIdx], opt.DataType, value);
                 }
                 else
                 {
-                    implicitValues.Add(value);
-                    implicitIdx++;
+                    argumentValues.Add(value);
+                    argumentIdx++;
                 }
             }
         }
 
-        foreach (var opt in ExplicitArguments)
+        foreach (var opt in Options)
         {
-            if (!explicitValues.ContainsKey(opt.Name))
+            if (!optionValues.ContainsKey(opt.Name))
             {
-                explicitValues[opt.Name] = opt.DefaultValue;
+                optionValues[opt.Name] = opt.DefaultValue;
             }
         }
 
         if (boundDelegate is not null)
         {
             var paramOrder = boundDelegate.GetMethodInfo().GetParameters().Select(x => x.Name).ToList();
-            var explictValuesOrdered = explicitValues.OrderBy(x => paramOrder.IndexOf(x.Key)).Select(x => x.Value).ToArray();
+            var optionValuesOrdered = optionValues.OrderBy(x => paramOrder.IndexOf(x.Key)).Select(x => x.Value).ToArray();
 
-            var paramValues = implicitValues.Concat(explictValuesOrdered).ToArray();
+            var paramValues = argumentValues.Concat(optionValuesOrdered).ToArray();
 
-            if (implicitValues.Count != ImplicitArguments.Count)
+            if (argumentValues.Count != Arguments.Count)
             {
                 throw new ParsingException($"Too few arguments for: {Name}. " +
-                    $"Expected {ImplicitArguments.Count} but got {implicitValues.Count}.", this);
+                    $"Expected {Arguments.Count} but got {argumentValues.Count}.", this);
             }
 
             var returned = boundDelegate.DynamicInvoke(paramValues);
@@ -238,7 +238,7 @@ public class Command
 
     public int HandleCommandLine(IEnumerable<string> args) => HandleCommandLineAsync(args).GetAwaiter().GetResult();
 
-    void HandleExplicitArgument(Dictionary<string, object> values, string arg)
+    void HandleOption(Dictionary<string, object> values, string arg)
     {
         var optArg = arg.Substring(2).Split('=');
 
@@ -249,7 +249,7 @@ public class Command
 
         string kebabName = optArg[0];
 
-        var opt = ExplicitArguments.FirstOrDefault(x => x.Name.ToKebabCase() == kebabName);
+        var opt = Options.FirstOrDefault(x => x.Name.ToKebabCase() == kebabName);
 
         if (opt is null)
         {

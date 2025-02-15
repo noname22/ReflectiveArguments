@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
 
 namespace ReflectiveArguments;
 
@@ -22,18 +23,20 @@ class Help
 
     public List<string> GetHelp()
     {
-        var ret = new List<string>();
-        ret.Add(string.IsNullOrWhiteSpace(command.Description) ? command.FullName : $"{command.FullName} - {command.Description}");
-        ret.Add(string.Empty);
+        var ret = new List<string>
+        {
+            string.IsNullOrWhiteSpace(command.Description) ? command.FullName : $"{command.FullName} - {command.Description}",
+            string.Empty
+        };
 
-        string GetDefaultText(Argument arg)
+        string GetDefaultText(Parameter arg)
         {
             var single = "default: " + (arg.DefaultValue is null ? "null" : $"{arg.DefaultValue}");
             var multiple = "accepts many, default: none";
             return arg.AcceptsMany ? multiple : single;
         }
 
-        string GetUsage(Argument arg)
+        string GetUsage(Parameter arg)
         {
             bool isFlag = arg.DataType == typeof(bool);
             var normalUsage = $"--{arg.KebabName}=<{arg.DataType.Name}>";
@@ -42,11 +45,12 @@ class Help
             return arg.AcceptsMany ? multiUsage : (isFlag ? flagUsage : normalUsage);
         }
 
-        var options = command.ExplicitArguments.Select(x => (
+        var options = command.Options.OrderBy(x => x.Name).Select(x => (
             Left: GetUsage(x),
-            Right: $"{x.Description} ({GetDefaultText(x)})"));
+            Right: $"{x.Description} ({GetDefaultText(x)})"))
+            .Concat(new[] { (Left: "--help", Right: " Show this help text") });
 
-        var arguments = command.ImplicitArguments.Select(x => (
+        var arguments = command.Arguments.Select(x => (
             Left: x.AcceptsMany
                 ? $"<{x.KebabName}> (one or more {x.DataType.Name}s)"
                 : $"<{x.KebabName}> ({x.DataType.Name})",
@@ -59,12 +63,12 @@ class Help
 
         int pad = (padBy.Any() ? padBy.Max(x => x.Length) : 0) + 2;
 
-        var serialOpts = options.Any()
+        var optionsSummary = options.Any()
             ? string.Join(" ", options.Select(x => $"[{x.Left}]")) + " "
             : string.Empty;
 
-        var implicitArguments = command.ImplicitArguments.Any()
-            ? string.Join(" ", command.ImplicitArguments
+        var argumentsSummary = command.Arguments.Any()
+            ? string.Join(" ", command.Arguments
                 .Select(x => x.AcceptsMany ? $"<{x.KebabName}> (...)" : $"<{x.KebabName}>")) + " "
             : string.Empty;
 
@@ -75,7 +79,7 @@ class Help
             commandText = command.IsBound ? "(<command>)" : "<command>";
         }
 
-        ret.Add($"usage: {string.Join(" ", command.Path)} {serialOpts}{implicitArguments}{commandText}");
+        ret.Add($"usage: {string.Join(" ", command.Path)} {optionsSummary}{argumentsSummary}{commandText}");
         ret.Add(string.Empty);
 
         if (arguments.Any())
@@ -112,6 +116,7 @@ class Help
             }
 
             ret.Add(string.Empty);
+            ret.Add($"Run '{command.FullName} [command] --help' for more information on a command.");
         }
 
         return ret;

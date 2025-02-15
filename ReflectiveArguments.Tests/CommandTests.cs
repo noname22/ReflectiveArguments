@@ -138,7 +138,7 @@ namespace ReflectiveArguments.Tests
         }
 
         [Fact]
-        public async Task Invoke_WithRepeatImplicitArguments_ShouldExecuteSuccessfully()
+        public async Task Invoke_WithRepeatArguments_ShouldExecuteSuccessfully()
         {
             int gotParameter = 0;
             int[] gotMoreParameters = new int[] { };
@@ -157,19 +157,19 @@ namespace ReflectiveArguments.Tests
         }
 
         [Fact]
-        public void Bind_WithRepeatImplicitArgumentsNotLast_ShouldThrow()
+        public void Bind_WithRepeatArgumentsNotLast_ShouldThrow()
         {
             void Method(int[] input, int moreInput) { }
             var ex = Assert.Throws<ArgumentException>(() => Command.FromMethod(Method));
-            ex.Message.Should().Be("Only the last implicit argument may accept many values");
+            ex.Message.Should().Be("Only the last argument may accept many values");
         }
 
         [Fact]
-        public void Bind_WithMultipleRepeatImplicitArguments_ShouldThrow()
+        public void Bind_WithMultipleRepeatArguments_ShouldThrow()
         {
             void Method(int[] input, int[] moreInput) { }
             var ex = Assert.Throws<ArgumentException>(() => Command.FromMethod(Method));
-            ex.Message.Should().Be("Only the last implicit argument may accept many values");
+            ex.Message.Should().Be("Only the last argument may accept many values");
         }
     }
 }

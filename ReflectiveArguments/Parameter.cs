@@ -4,14 +4,14 @@ using System.Reflection;
 
 namespace ReflectiveArguments;
 
-enum ArgumentType
+enum ParameterType
 {
-    Explicit, Implicit
+    Option, Argument
 }
 
-class Argument
+class Parameter
 {
-    public ArgumentType ArgumentType { get; set; }
+    public ParameterType ParameterType { get; set; }
     public Type DataType { get; set; }
     public string Name { get; set; }
     public string KebabName => Name.ToKebabCase();
@@ -36,10 +36,10 @@ class Argument
         }
     }
 
-    public static Argument FromParameterInfo(ParameterInfo info) => new Argument
+    public static Parameter FromParameterInfo(ParameterInfo info) => new Parameter
     {
         AcceptsMany = info.ParameterType.IsArray,
-        ArgumentType = info.HasDefaultValue ? ArgumentType.Explicit : ArgumentType.Implicit,
+        ParameterType = info.HasDefaultValue ? ParameterType.Option : ParameterType.Argument,
         DataType = info.ParameterType.IsArray ? info.ParameterType.GetElementType() : info.ParameterType,
         DefaultValue = info.DefaultValue,
         Description = info.GetCustomAttribute<DescriptionAttribute>(false)?.Description ?? string.Empty,
