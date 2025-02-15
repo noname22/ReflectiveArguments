@@ -15,7 +15,7 @@ It is based around the idea that methods can be called directly from the command
 ## Structure
 ReflectiveArguments is based on *commands* and *parameters*. Commands are defined as methods within classes, and parameters are defined as method parameters. The library uses reflection to parse command line arguments and invoke the appropriate method based on the provided arguments.
 
-Much like *git** or *dotnet* CLI, ReflectiveArguments uses a hierarchical structure to define commands. The root command is the entry point for the application, and subcommands can be added to that. Each subcommand can have its own parameters, which are defined as method parameters.
+Much like *git* or *dotnet* CLI, ReflectiveArguments uses a hierarchical structure to define commands. The root command is the entry point for the application, and subcommands can be added to that. Each subcommand can have its own parameters, which are defined as method parameters.
 
 ### Commands
 Commands are defined as methods within classes. Each command method must have a return type of `void` or `Task` and can have zero or more parameters. By default, the method name is converted to `kebab-case` used as the command name.
