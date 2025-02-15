@@ -2,7 +2,7 @@
 
 ReflectiveArguments is a .NET 6+ library designed to simplify command line argument parsing and execution using reflection. This library allows developers to define commands and their associated parameters as methods within classes, and automatically handles the parsing and invocation of these commands based on the provided command line arguments.
 
-It is based around the idea that methods called directly from the command line.
+It is based around the idea that methods can called directly from the command line.
 
 ## Features
 
