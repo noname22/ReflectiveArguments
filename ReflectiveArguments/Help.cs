@@ -47,8 +47,8 @@ class Help
 
         var options = command.Options.OrderBy(x => x.Name).Select(x => (
             Left: GetUsage(x),
-            Right: $"{x.Description} ({GetDefaultText(x)})"))
-            .Concat(new[] { (Left: "--help", Right: " Show this help text") });
+            Right: $"{x.Description} ({GetDefaultText(x)})".Trim()))
+            .Concat(new[] { (Left: "--help", Right: "Show this help text") });
 
         var arguments = command.Arguments.Select(x => (
             Left: x.AcceptsMany
